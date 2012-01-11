@@ -4,6 +4,8 @@ import logging
 
 ################
 #Configuration:
+import logging.config
+
 LOGGING = {
         'version': 1.0,
         'handlers': {
