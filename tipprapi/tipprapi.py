@@ -6,7 +6,7 @@ SETTINGS = {
         'api_key': '678563f4bece11e094f4fefd45a4c5ef'
         }
 
-PAGE_SIZE = 20
+PAGE_SIZE = 200
 
 class BaseTipprAPIClient(object):
     """

@@ -1,5 +1,5 @@
 from tipprapi.tipprapi import TipprAPIClient
-from googleoffers.client import GoogleOffers
+from googleoffers.client import GoogleOffers, GoogleOffersError
 import logging
 
 ################
@@ -41,20 +41,26 @@ try:
 
     for i, promotion in enumerate(promotions):
         if promotion['status'] in ['approved', 'active', 'closed']:
-            print g_client.GetOfferStatus(promotion['id'])
+            try:
+                status = g_client.GetOfferStatus(promotion['id'])
 
-            from commons.persistence import insert                                                                                         
-            data = {
-                    'tippr_offer_id': promotion['id'],
-                    'status'        : status,
-                    'last_update'   : last_update_date,
-                    }
-            insert(cursor, 'googleoffers', data.keys(), data)
+                from commons.persistence import insert                                                                                         
+                from datetime import date
+                last_update_date = date.today() #TODO
+                data = {
+                        'tippr_offer_id': promotion['id'],
+                        'status'        : status,
+                        'last_update'   : last_update_date,
+                        }
+                insert(cursor, 'google_offers', data.keys(), data)
 
-            if i % 10:
-                conn.commit()
+                if i % 10:
+                    conn.commit()
+            except GoogleOffersError:
+                pass
+
 except Exception, e:
-    logging.error(e)
+    logging.exception("Error in google offers sync")
 
 conn.commit()
 cursor.close()
