@@ -32,14 +32,28 @@ logger = logging.getLogger('googleoffers-sync')
 
 from commons.persistence import insert                                                                                         
 from datetime import date
-
-def find_status_size(g_client, pid, status):
-    codes = g_client.GetRedemptionCodesWithStatus(pid, status)
-    return len(codes.get('offer', {}).get('codes', []))
+import datetime
 
 from commons.configuration import open_connection
 conn = open_connection()
 cursor = conn.cursor()
+
+today = date.today()
+
+def register_offer(conn, cursor, promotion, g_status):
+    data = {
+            'tippr_offer_id': promotion['id'],
+            'status'        : g_status,
+            'last_update'   : today
+            }
+    insert(cursor, 'google_offers', data.keys(), data)
+
+def update_redemption_data(redemtion_data, g_status, codes):
+    #if g_status in ['active']: #TODO
+    for g_status in ['CREATED', 'PURCHASED', 'REDEEMED', 'REFUND_HOLD', 'REFUNDED', 'CANCELLED']:
+        size = len(codes.get('offer', {}).get('codes', []))
+        redemtion_data[g_status] = redemtion_data.get(g_status, 0) + size
+    return redemtion_data
 
 try:
     tippr_client = TipprAPIClient()
@@ -48,35 +62,39 @@ try:
 
     redemtion_data = dict()
     for i, promotion in enumerate(promotions):
+
         if promotion['status'] in ['approved', 'active', 'closed']:
             try:
                 pid = promotion['id']
-                status = g_client.GetOfferStatus(pid)
-            
-                #if status in ['active']: #TODO
-                for status in ['CREATED', 'PURCHASED', 'REDEEMED', 'REFUND_HOLD', 'REFUNDED', 'CANCELLED']:
-                    size = find_status_size(g_client, pid, status)
-                    redemtion_data[status] = redemtion_data.get(status, 0) + size
+                g_status = g_client.GetOfferStatus(pid)
 
-                last_update_date = date.today() #TODO
-                data = {
-                        'tippr_offer_id': promotion['id'],
-                        'status'        : status,
-                        'last_update'   : last_update_date,
-                        }
-                insert(cursor, 'google_offers', data.keys(), data)
+                register_offer(conn, cursor, promotion, g_status)
+
+                redemption_codes = g_client.GetRedemptionCodesWithStatus(pid, g_status)
+
+                redemtion_data = update_redemption_data(redemtion_data, g_status, redemption_codes)
+
+                end_date = datetime.datetime.strptime(promotion['end_date'], "%Y-%m-%d").date()
+                if end_date < today and 'error' not in redemption_codes: #comprobacion 
+                    for code in redemption_codes.get('offer', {}).get('codes', []):
+                        try:
+                            voucher = g_client.GetVoucher(pid, code['id'])
+                            print voucher
+                            #if voucher['status'] not in ['PURCHASED', 'REDEEMED', 'REFUNDED REFUND_HOLD']:
+                                #pass
+                        except:
+                            pass
 
                 if i % 10:
                     conn.commit()
             except GoogleOffersError:
                 pass
 
-    last_update_date = date.today()
-    for status in ['CREATED', 'PURCHASED', 'REDEEMED', 'REFUND_HOLD', 'REFUNDED', 'CANCELLED']:
+    for g_status in ['CREATED', 'PURCHASED', 'REDEEMED', 'REFUND_HOLD', 'REFUNDED', 'CANCELLED']:
         data = {
-                'size'       : redemtion_data[status],
-                'status'     : status,
-                'last_update': last_update_date,
+                'size'       : redemtion_data.get(g_status, 0),
+                'status'     : g_status,
+                'last_update': today
                 }
         insert(cursor, 'redemption_codes', data.keys(), data)
         conn.commit()
