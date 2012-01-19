@@ -1,12 +1,16 @@
 import urllib
 import simplejson 
 
+import logging
+
 SETTINGS = {
         'api_url': 'https://marketplace.poweredbytippr.com/api/v0/',
         'api_key': '678563f4bece11e094f4fefd45a4c5ef'
         }
 
 PAGE_SIZE = 200
+
+logger = logging.getLogger('tippr-api')
 
 class BaseTipprAPIClient(object):
     """
@@ -49,6 +53,18 @@ class TipprAPIClient(BaseTipprAPIClient):
 
     def find_promotions(self, query={}):
         return ResultIterator('promotions', lambda params: self._make_api_request('get', 'promotion/', params), query)
+
+    def return_voucher(self, voucher_id):
+        params = dict(action='return')
+        result = self._make_api_request('post', 'voucher/%(id)s/action/' % dict(id=voucher_id), params)
+        logger.debug('returning voucher %s: %s' % (voucher_id, result))
+        return result
+
+    def close_promotion(self, pid):
+        params = dict(action='close')
+        result = self._make_api_request('post', 'promotion/%(id)s/action/' % dict(id=pid), params)
+        logger.debug('closing promotion %s: %s' % (pid, result))
+        return result
 
 class ResultIterator(object):
     def __init__(self, key, callback, params):

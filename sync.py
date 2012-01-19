@@ -1,5 +1,3 @@
-from tipprapi.tipprapi import TipprAPIClient
-from googleoffers.client import GoogleOffers, GoogleOffersError
 import logging
 
 ################
@@ -19,6 +17,10 @@ LOGGING = {
                 'handlers': ['console'],
                 'level'   : 'DEBUG'
                 },
+            'tippr-api': {
+                'handlers': ['console'],
+                'level'   : 'DEBUG'
+                }
         }
 }
 
@@ -28,13 +30,15 @@ SECRETS_FILE = 'metadata/client_secrets.json'
 
 ################
 
+import datetime
+from datetime import date
+from tipprapi.tipprapi import TipprAPIClient
+from googleoffers.client import GoogleOffers, GoogleOffersError
+from commons.configuration import open_connection
+from commons.persistence import insert                                                                                         
+
 logger = logging.getLogger('googleoffers-sync')
 
-from commons.persistence import insert                                                                                         
-from datetime import date
-import datetime
-
-from commons.configuration import open_connection
 conn = open_connection()
 cursor = conn.cursor()
 
@@ -76,19 +80,15 @@ try:
 
                 end_date = datetime.datetime.strptime(promotion['end_date'], "%Y-%m-%d").date()
                 if end_date < today and 'error' not in redemption_codes: #comprobacion 
-                    for code in redemption_codes.get('offer', {}).get('codes', []):
-                        try:
-                            voucher = g_client.GetVoucher(pid, code['id'])
-                            print voucher
-                            #if voucher['status'] not in ['PURCHASED', 'REDEEMED', 'REFUNDED REFUND_HOLD']:
-                                #pass
-                        except:
-                            pass
+                    for voucher in redemption_codes.get('offer', {}).get('codes', []):
+                        if voucher['status'] not in ['PURCHASED', 'REDEEMED', 'REFUNDED REFUND_HOLD']:
+                            tippr_client.return_voucher(voucher['id'])
+                    tippr_client.close_promotion(pid)
 
                 if i % 10:
                     conn.commit()
             except GoogleOffersError:
-                pass
+                logging.exception("Error in google offers")
 
     for g_status in ['CREATED', 'PURCHASED', 'REDEEMED', 'REFUND_HOLD', 'REFUNDED', 'CANCELLED']:
         data = {
