@@ -54,6 +54,10 @@ class TipprAPIClient(BaseTipprAPIClient):
     def find_promotions(self, query={}):
         return ResultIterator('promotions', lambda params: self._make_api_request('get', 'promotion/', params), query)
 
+    def find_vouchers(self, pid, query={}, **kwargs):
+        query = dict(promotion_id=pid)
+        return ResultIterator('vouchers', lambda params: self._make_api_request('get', 'voucher/', params), query)
+
     def return_voucher(self, voucher_id):
         params = dict(action='return')
         result = self._make_api_request('post', 'voucher/%(id)s/action/' % dict(id=voucher_id), params)
@@ -65,13 +69,6 @@ class TipprAPIClient(BaseTipprAPIClient):
         result = self._make_api_request('post', 'promotion/%(id)s/action/' % dict(id=pid), params)
         logger.debug('closing promotion %s: %s' % (pid, result))
         return result
-    
-    def get_vouchers(self, pid, query={}, **kwargs):
-        query = dict(promotion_id=pid)
-#        params.update(kwargs)
-        return ResultIterator('vouchers', lambda params: self._make_api_request('get', 'voucher/', params), query)
-        
-    
 
 class ResultIterator(object):
     def __init__(self, key, callback, params):
