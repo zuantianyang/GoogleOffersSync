@@ -65,6 +65,13 @@ class TipprAPIClient(BaseTipprAPIClient):
         result = self._make_api_request('post', 'promotion/%(id)s/action/' % dict(id=pid), params)
         logger.debug('closing promotion %s: %s' % (pid, result))
         return result
+    
+    def get_vouchers(self, pid, query={}, **kwargs):
+        query = dict(promotion_id=pid)
+#        params.update(kwargs)
+        return ResultIterator('vouchers', lambda params: self._make_api_request('get', 'voucher/', params), query)
+        
+    
 
 class ResultIterator(object):
     def __init__(self, key, callback, params):
