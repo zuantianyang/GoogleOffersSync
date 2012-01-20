@@ -1,8 +1,10 @@
 import logging
+import commons.dictconfig
 
 ################
 #Configuration:
 import logging.config
+from dictconfig import dictConfig
 
 LOGGING = {
         'version': 1.0,
@@ -24,7 +26,9 @@ LOGGING = {
         }
 }
 
-logging.config.dictConfig(LOGGING)
+#logging.config.dictConfig(LOGGING)
+dictConfig(LOGGING)
+
 TOKEN_FILE ='metadata/tokens.dat'
 SECRETS_FILE = 'metadata/client_secrets.json'
 
@@ -42,11 +46,11 @@ today = date.today()
 
 def register_offer(conn, cursor, promotion, g_status):
     data = {
-            'tippr_offer_id': promotion['id'],
+            'promotion_id': promotion['id'],
             'status'        : g_status,
-            'last_update'   : today
+            'last_update'   : datetime.datetime.now()
             }
-    insert(cursor, 'google_offers', data.keys(), data)
+    insert(cursor, 'promotions', data.keys(), data)
 
 def update_redemption_data(g_client, redemtion_data, pid, g_status):
     if g_status == 'LIVE':
@@ -81,7 +85,7 @@ def sync():
         for i, promotion in enumerate(promotions):
             promotion_status = promotion['status']
             pid = promotion['id']
-            logger.debug('processing promotion id: %s' % pid)
+            logger.debug('processing promotion id: %s, status is %s' % (pid, promotion_status))
             try:
                 if promotion_status in ['approved', 'active', 'closed']:
                     g_status = g_client.GetOfferStatus(pid)
@@ -96,9 +100,10 @@ def sync():
 
         for g_status in ['CREATED', 'PURCHASED', 'REDEEMED', 'REFUND_HOLD', 'REFUNDED', 'CANCELLED']:
             data = {
+                    'promotion_id' : pid,
                     'size'       : redemtion_data.get(g_status, 0),
                     'status'     : g_status,
-                    'last_update': today
+                    'last_update': datetime.datetime.now()
                     }
             insert(cursor, 'redemption_codes', data.keys(), data)
             conn.commit()
