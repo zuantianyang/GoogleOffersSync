@@ -1,10 +1,9 @@
 import logging
-#import commons.dictconfig
+import commons.dictconfig
 
 ################
 #Configuration:
 import logging.config
-#from dictconfig import dictConfig
 
 LOGGING = {
         'version': 1.0,
@@ -26,8 +25,7 @@ LOGGING = {
         }
 }
 
-#logging.config.dictConfig(LOGGING)
-#dictConfig(LOGGING)
+commons.dictconfig.dictConfig(LOGGING)
 
 TOKEN_FILE ='metadata/tokens.dat'
 SECRETS_FILE = 'metadata/client_secrets.json'
@@ -41,7 +39,7 @@ from googleoffers.client import GoogleOffers, GoogleOffersError
 from commons.configuration import open_connection
 from commons.persistence import insert                                                                                         
 
-#logger = logging.getLogger('googleoffers-sync')
+logger = logging.getLogger('googleoffers-sync')
 today = date.today()
 
 def register_offer(conn, cursor, promotion, g_status):
@@ -56,7 +54,6 @@ def update_redemption_data(g_client, redemtion_data, pid, g_status):
     for status in ['CREATED', 'PURCHASED', 'REDEEMED', 'REFUND_HOLD', 'REFUNDED', 'CANCELLED']:
         redemption_codes = g_client.GetRedemptionCodesWithStatus(pid, status)
         size = len(redemption_codes.get('offer', {}).get('codes', []))
-        #redemtion_data[status] = redemtion_data.get(status, 0) + size
         redemtion_data[status] = size
     return redemtion_data
 
@@ -70,7 +67,7 @@ def expire_promotion(tippr_client, g_client, promotion):
             for r in redemption_codes.get('offer', {}).get('codes', []):         
                 for voucher in vouchers:
                     if voucher['status'] != 'returned' and voucher['redemption_code'] == r['id']:
-                        print "PromotionID: %s - Voucher: %s - Redemption Code: %s" % (pid, voucher, r['id'])
+                        logger.debug("PromotionID: %s - Voucher: %s - Redemption Code: %s" % (pid, voucher, r['id']))
                         tippr_client.return_voucher(voucher['id']) 
         tippr_client.close_promotion(pid)
 
@@ -86,7 +83,7 @@ def sync():
         for i, promotion in enumerate(promotions):
             promotion_status = promotion['status']
             pid = promotion['id']
-            #logger.debug('processing promotion id: %s, status is %s' % (pid, promotion_status))
+            logger.debug('processing promotion id: %s, status is %s' % (pid, promotion_status))
             try:
                 if promotion_status in ['approved', 'active', 'closed']:
                     g_status = g_client.GetOfferStatus(pid)
@@ -94,7 +91,7 @@ def sync():
                     redemtion_data = update_redemption_data(g_client, redemtion_data, pid, g_status)
                     
                     for g_status in ['CREATED', 'PURCHASED', 'REDEEMED', 'REFUND_HOLD', 'REFUNDED', 'CANCELLED']:
-                        print pid + " / " + g_status + " / " + str(redemtion_data.get(g_status, 0),)
+                        logger.debug("%s / %s / %s" % (pid, g_status, str(redemtion_data.get(g_status, 0))))
                         data = {
                                 'promotion_id' : pid,
                                 'size'       : redemtion_data.get(g_status, 0),
@@ -119,7 +116,7 @@ def sync():
     conn.commit()
     cursor.close()
     conn.close()
-    print "*** END ***"
+    logger.debug("*** END ***")
 
 if __name__ == "__main__":
     sync()
