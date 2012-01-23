@@ -40,22 +40,29 @@ from commons.configuration import open_connection
 from commons.persistence import insert                                                                                         
 
 logger = logging.getLogger('googleoffers-sync')
-today = date.today()
 
 def register_offer(conn, cursor, promotion, g_status):
     data = {
             'promotion_id': promotion['id'],
-            'status'        : g_status,
-            'last_update'   : datetime.datetime.now()
+            'status'      : g_status,
+            'last_update' : datetime.datetime.now()
             }
     insert(cursor, 'promotions', data.keys(), data)
 
-def update_redemption_data(g_client, redemtion_data, pid, g_status):
+def update_redemption_data(conn, cursor, g_client, pid):
     for status in ['CREATED', 'PURCHASED', 'REDEEMED', 'REFUND_HOLD', 'REFUNDED', 'CANCELLED']:
         redemption_codes = g_client.GetRedemptionCodesWithStatus(pid, status)
         size = len(redemption_codes.get('offer', {}).get('codes', []))
-        redemtion_data[status] = size
-    return redemtion_data
+                    
+        logger.debug("%s / %s / %s" % (pid, status, size))
+        data = {
+                'promotion_id': pid,
+                'size'        : size,
+                'status'      : status,
+                'last_update' : datetime.datetime.now()
+                }
+        insert(cursor, 'redemption_codes', data.keys(), data)
+    conn.commit()
 
 def expire_promotion(tippr_client, g_client, promotion):
     pid = promotion['id']
@@ -79,7 +86,6 @@ def sync():
         g_client = GoogleOffers('8793954', TOKEN_FILE, SECRETS_FILE)
         promotions = tippr_client.find_promotions()
 
-        redemtion_data = dict()
         for i, promotion in enumerate(promotions):
             promotion_status = promotion['status']
             pid = promotion['id']
@@ -88,28 +94,13 @@ def sync():
                 if promotion_status in ['approved', 'active', 'closed']:
                     g_status = g_client.GetOfferStatus(pid)
                     register_offer(conn, cursor, promotion, g_status)
-                    redemtion_data = update_redemption_data(g_client, redemtion_data, pid, g_status)
-                    
-                    for g_status in ['CREATED', 'PURCHASED', 'REDEEMED', 'REFUND_HOLD', 'REFUNDED', 'CANCELLED']:
-                        logger.debug("%s / %s / %s" % (pid, g_status, str(redemtion_data.get(g_status, 0))))
-                        data = {
-                                'promotion_id' : pid,
-                                'size'       : redemtion_data.get(g_status, 0),
-                                'status'     : g_status,
-                                'last_update': datetime.datetime.now()
-                                }
-                        insert(cursor, 'redemption_codes', data.keys(), data)
-                    conn.commit()
-                    
+                    update_redemption_data(conn, cursor, g_client, pid)
                 elif promotion_status == 'expired':
                     expire_promotion(tippr_client, g_client, promotion)
                 if i % 10:
                     conn.commit()
             except GoogleOffersError:
                 logging.exception("Error in google offers")
-
-
-            
     except Exception, e:
         logging.exception("Error in google offers sync")
 
