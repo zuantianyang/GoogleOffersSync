@@ -46,7 +46,8 @@ def register_promotion(conn, cursor, promotion):
     cursor.execute('select * from promotions where id = %s', [promotion_id])
     if not cursor.fetchone():
         offer = promotion['offer']
-        category_id = register_named_entity(conn, cursor, offer['category'], 'categories', dict(label=category['label']))
+        category = offer['category']
+        category_id = register_named_entity(conn, cursor, category, 'categories', dict(label=category['label']))
         advertiser_id = register_named_entity(conn, cursor, offer['advertiser'], 'advertisers')
         data = {
                 'id'                : promotion_id,
@@ -109,8 +110,8 @@ def sync(tippr_client, g_client):
         promotions = tippr_client.find_promotions()
 
         for i, promotion in enumerate(promotions):
-            promotion_status = promotion['status']
             pid = promotion['id']
+            promotion_status = promotion['status']
             logger.info('processing promotion id: %s, status is %s' % (pid, promotion_status))
             register_promotion(conn, cursor, promotion)
             try:
