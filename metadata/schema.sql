@@ -43,9 +43,10 @@ ALTER TABLE "categories" OWNER TO "postgres";
 -- ----------------------------
 DROP TABLE IF EXISTS "promotions" CASCADE;
 CREATE TABLE "promotions" (
-	id varchar(100) PRIMARY KEY,
+  	id varchar(100) PRIMARY KEY,
     --first_observed, 
     marketplace_status varchar(50), 
+    headline varchar(200), 
     name varchar(100),
     start_date timestamp,
     end_date timestamp,
@@ -69,8 +70,12 @@ ALTER TABLE "markets" OWNER TO "postgres";
 -- ----------------------------
 --  Table structure for "promotion_market"
 -- ----------------------------
+CREATE SEQUENCE id_promotion_market_seq INCREMENT 1 START 600 MAXVALUE 9223372036854775807 MINVALUE 1 CACHE 1;
+ALTER TABLE id_promotion_market_seq OWNER TO postgres;
+
 DROP TABLE IF EXISTS "promotion_market";
 CREATE TABLE "promotion_market" (
+    id int8 DEFAULT nextval('id_promotion_market_seq'::regclass) PRIMARY KEY,
 	"promotion_id" varchar(100) REFERENCES promotions (id),
 	"market_id" varchar(100) REFERENCES markets (id)
 )

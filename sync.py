@@ -53,6 +53,7 @@ def register_promotion(conn, cursor, promotion):
                 'id'                : promotion_id,
                 'marketplace_status': promotion['status'],
                 'name'              : promotion['name'].encode('utf-8'),
+                'headline'          : offer['headline'].encode('utf-8'),
                 'start_date'        : promotion['start_date'],
                 'end_date'          : promotion['end_date'],
                 'category_id'       : category_id,
