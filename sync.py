@@ -102,14 +102,14 @@ def expire_promotion(tippr_client, g_client, promotion):
                 for r in redemption_codes.get('offer', {}).get('codes', []):         
                     for i, voucher in enumerate(vouchers):
                         logger.info("Processing PromotionID: %s - Voucher: %s - Redemption Code: %s" % (pid, voucher['id'], voucher['redemption_code']))
-                        if voucher['status'] != 'returned' and voucher['redemption_code'] == r['id']:
+                        if voucher['status'] != 'returned' and voucher['voucher_code'] == r['id']:
                             logger.debug("PromotionID: %s - Voucher: %s - Redemption Code: %s - Returned succesfully!" % (pid, voucher, r['id']))
                             tippr_client.return_voucher(voucher['id'])
             except Exception, e:
                 logging.exception(e)
                 continue
                 
-        tippr_client.close_promotion(pid)
+        #tippr_client.close_promotion(pid)
 
 def sync(tippr_client, g_client):
     conn = open_connection()
@@ -130,7 +130,7 @@ def sync(tippr_client, g_client):
                     register_promotion_history(conn, cursor, promotion, g_status)
                     update_redemption_data(conn, cursor, g_client, pid)
                 #elif promotion_status == 'expired':
-                if end_date < today and promotion_status not in ['finalized','rejected', 'draft', 'submitted', 'closed']:
+                if end_date < today and promotion_status: #not in ['finalized','rejected', 'draft', 'submitted', 'closed']:
                     expire_promotion(tippr_client, g_client, promotion)
             except GoogleOffersError:
                 logging.exception("Error in google offers")
@@ -149,4 +149,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
