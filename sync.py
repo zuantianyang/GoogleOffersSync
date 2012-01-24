@@ -37,41 +37,30 @@ from datetime import date
 from tipprapi.tipprapi import TipprAPIClient
 from googleoffers.client import GoogleOffers, GoogleOffersError
 from commons.configuration import open_connection
-from commons.persistence import dinsert
+from commons.persistence import dinsert, register_named_entity
 
 logger = logging.getLogger('googleoffers-sync')
 
-def register_category(conn, cursor, category):
-    category_id = category['id']
-    cursor.execute('select * from categories where category_id = %s', [category_id])
-    if not cursor.fetchone():
-        dinsert(cursor, 'categories', dict(category_id=category_id, name=category['name'], label=category['label']))
-    return category_id
-
-def register_market(conn, cursor, market):
-    market_id = market['id']
-    cursor.execute('select * from markets where market_id = %s', [market_id])
-    if not cursor.fetchone():
-        dinsert(cursor, 'markets', dict(market_id=market_id, name=market['name']))
-    return market_id
-
 def register_promotion(conn, cursor, promotion):
     promotion_id = promotion['id']
-    cursor.execute('select * from promotions where promotion_id = %s', [promotion_id])
+    cursor.execute('select * from promotions where id = %s', [promotion_id])
     if not cursor.fetchone():
-        category_id = register_category(conn, cursor, promotion['offer']['category'])
+        offer = promotion['offer']
+        category_id = register_named_entity(conn, cursor, offer['category'], 'categories', dict(label=category['label']))
+        advertiser_id = register_named_entity(conn, cursor, offer['advertiser'], 'advertisers')
         data = {
-                'promotion_id'      : promotion_id,
+                'id'                : promotion_id,
                 'marketplace_status': promotion['status'],
                 'name'              : promotion['name'].encode('utf-8'),
                 'start_date'        : promotion['start_date'],
                 'end_date'          : promotion['end_date'],
-                'category_id'       : category_id
+                'category_id'       : category_id,
+                'advertiser_id'     : advertiser_id
                 }
         dinsert(cursor, 'promotions', data)
         sites = promotion.get('publisher', {}).get('sites', [])
         for site in sites:
-            market_id = register_market(conn, cursor, site['market'])
+            market_id = register_named_entity(conn, cursor, site['market'], 'markets')
             dinsert(cursor, 'promotion_market', dict(promotion_id=promotion_id, market_id=market_id))
         conn.commit()
 

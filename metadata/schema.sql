@@ -16,11 +16,22 @@
 */
 
 -- ----------------------------
+--  Table structure for "advertisers"
+-- ----------------------------
+DROP TABLE IF EXISTS "advertisers" CASCADE;
+CREATE TABLE "advertisers" (
+	id varchar(100) PRIMARY KEY,
+    name varchar(100)
+)
+WITH (OIDS=FALSE);
+ALTER TABLE "advertisers" OWNER TO "postgres";
+
+-- ----------------------------
 --  Table structure for "categories"
 -- ----------------------------
 DROP TABLE IF EXISTS "categories" CASCADE;
 CREATE TABLE "categories" (
-	"category_id" varchar(100) PRIMARY KEY,
+	id varchar(100) PRIMARY KEY,
     name varchar(100),
     label varchar(100)
 )
@@ -32,13 +43,14 @@ ALTER TABLE "categories" OWNER TO "postgres";
 -- ----------------------------
 DROP TABLE IF EXISTS "promotions" CASCADE;
 CREATE TABLE "promotions" (
-	"promotion_id" varchar(100) PRIMARY KEY,
+	id varchar(100) PRIMARY KEY,
     --first_observed, 
     marketplace_status varchar(50), 
     name varchar(100),
     start_date timestamp,
     end_date timestamp,
-    category_id varchar(100) REFERENCES categories (category_id)
+    category_id varchar(100) REFERENCES categories (id),
+    advertiser_id varchar(100) REFERENCES advertisers (id)
 )
 WITH (OIDS=FALSE);
 ALTER TABLE "promotions" OWNER TO "postgres";
@@ -48,7 +60,7 @@ ALTER TABLE "promotions" OWNER TO "postgres";
 -- ----------------------------
 DROP TABLE IF EXISTS "markets" CASCADE;
 CREATE TABLE "markets" (
-	"market_id" varchar(100) PRIMARY KEY,
+	id varchar(100) PRIMARY KEY,
     name varchar(100)
 )
 WITH (OIDS=FALSE);
@@ -59,8 +71,8 @@ ALTER TABLE "markets" OWNER TO "postgres";
 -- ----------------------------
 DROP TABLE IF EXISTS "promotion_market";
 CREATE TABLE "promotion_market" (
-	"promotion_id" varchar(100) REFERENCES promotions (promotion_id),
-	"market_id" varchar(100) REFERENCES markets (market_id)
+	"promotion_id" varchar(100) REFERENCES promotions (id),
+	"market_id" varchar(100) REFERENCES markets (id)
 )
 WITH (OIDS=FALSE);
 ALTER TABLE "promotion_market" OWNER TO "postgres";
@@ -70,7 +82,7 @@ ALTER TABLE "promotion_market" OWNER TO "postgres";
 -- ----------------------------
 DROP TABLE IF EXISTS "promotion_status_history";
 CREATE TABLE "promotion_status_history" (
-	"promotion_id" varchar(100) REFERENCES promotions (promotion_id),
+	"promotion_id" varchar(100) REFERENCES promotions (id),
 	"status" varchar(100),
 	"last_update" timestamp(6) NULL
 )
@@ -82,7 +94,7 @@ ALTER TABLE "promotion_status_history" OWNER TO "postgres";
 -- ----------------------------
 DROP TABLE IF EXISTS "redemption_codes";
 CREATE TABLE "redemption_codes" (
-	"promotion_id" varchar(100) REFERENCES promotions (promotion_id),
+	"promotion_id" varchar(100) REFERENCES promotions (id),
 	"size" int4,
 	"status" varchar(20),
 	"last_update" timestamp(6) NULL
