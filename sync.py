@@ -16,7 +16,7 @@ LOGGING = {
         'loggers': {
             'googleoffers-sync': {
                 'handlers': ['console'],
-                'level'   : 'INFO'
+                'level'   : 'ERROR'
                 },
             'tippr-api': {
                 'handlers': ['console'],
@@ -42,7 +42,6 @@ from commons.persistence import dinsert, register_named_entity
 logger = logging.getLogger('googleoffers-sync')
 today = date.today()
 
-
 def register_promotion(conn, cursor, promotion):
     promotion_id = promotion['id']
     cursor.execute('select * from promotions where id = %s', [promotion_id])
@@ -55,6 +54,7 @@ def register_promotion(conn, cursor, promotion):
                 'id'                : promotion_id,
                 'marketplace_status': promotion['status'],
                 'name'              : promotion['name'].encode('utf-8'),
+                'headline'          : offer['headline'].encode('utf-8'),
                 'start_date'        : promotion['start_date'],
                 'end_date'          : promotion['end_date'],
                 'category_id'       : category_id,
@@ -88,6 +88,7 @@ def update_redemption_data(conn, cursor, g_client, pid):
                 'status'      : status,
                 'last_update' : datetime.datetime.now()
                 }
+        cursor.execute('update redemption_codes set last=false where promotion_id = %s and status=%s', [pid, status])
         dinsert(cursor, 'redemption_codes', data)
     conn.commit()
 
@@ -107,7 +108,6 @@ def expire_promotion(tippr_client, g_client, promotion):
                             tippr_client.return_voucher(voucher['id'])
             except Exception, e:
                 logging.exception(e)
-                continue
                 
         #tippr_client.close_promotion(pid)
 

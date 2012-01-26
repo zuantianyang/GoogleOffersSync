@@ -1,3 +1,7 @@
 *.pyc
 *.un~
 *.swp
+.idea/*
+.project
+.pydevproject
+

@@ -102,6 +102,7 @@ CREATE TABLE "redemption_codes" (
 	"promotion_id" varchar(100) REFERENCES promotions (id),
 	"size" int4,
 	"status" varchar(20),
+	"last" boolean,
 	"last_update" timestamp(6) NULL
 )
 WITH (OIDS=FALSE);
