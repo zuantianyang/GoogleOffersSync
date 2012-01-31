@@ -8,7 +8,7 @@ SETTINGS = {
         'api_key': '678563f4bece11e094f4fefd45a4c5ef'
         }
 
-PAGE_SIZE = 200
+PAGE_SIZE = 5000
 
 logger = logging.getLogger('tippr-api')
 
@@ -68,6 +68,8 @@ class TipprAPIClient(BaseTipprAPIClient):
         params = dict(action='close')
         result = self._make_api_request('post', 'promotion/%(id)s/action/' % dict(id=pid), params)
         logger.debug('closing promotion %s: %s' % (pid, result))
+        if result['new_status'] == "close_delayed":
+            result = self._make_api_request('post', 'promotion/%(id)s/action/' % dict(id=pid), params)
         return result
 
 class ResultIterator(object):
