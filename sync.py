@@ -40,19 +40,16 @@ from googleoffers.client import GoogleOffers, GoogleOffersError
 from commons.configuration import open_connection
 from commons.persistence import dinsert, register_named_entity
 
-
 logger = logging.getLogger('googleoffers-sync')
 today = date.today()
-tomorrow = today + timedelta(days=1)
 yesterday = today - timedelta(days=1)
-
 
 def get_code_type(code, vouchers):
     """ Find out if this is a voucher_code or redemption_code """
     for v in vouchers:
         if code in v['voucher_code']:
             return 'voucher_code'
-        elif code in v['redemption_code']:
+        elif v['redemption_code'] and code in v['redemption_code']:
             return 'redemption_code'
     print "Unable to find voucher code %s\n" % code['id']
         
