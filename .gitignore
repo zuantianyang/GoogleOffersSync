@@ -1,5 +1,12 @@
 *.pyc
 *.un~
 *.swp
+<<<<<<< HEAD
 om_sample.py
 return_vouchers.py
+=======
+.idea/*
+.project
+.pydevproject
+
+>>>>>>> d357a121844ec259500a0ffb76e69624f19b7fa3
