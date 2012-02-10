@@ -131,11 +131,11 @@ def process_expired_promotion(tippr_client, g_client, promotion):
     for vv in v:
         if vv[code_type] not in purchased_codes:
             print "returning voucher... " + str(vv['id']) + " / " + str(vv[code_type])
-            #tippr_client.return_voucher(vv['id'])
+            tippr_client.return_voucher(vv['id'])
 
     logger.info("Closing Promotion ID %s" % str(pid))
-    #response = tippr_client.close_promotion(pid)
-    #logger.info("Promotion ID %s closed. Response is: %s" % (str(pid), str(response)))
+    response = tippr_client.close_promotion(pid)
+    #iste cologger.info("Promotion ID %s closed. Response is: %s" % (str(pid), str(response)))
     
 def process_closed_promotion(tippr_client, g_client, promotion):
     pid = promotion['id']
@@ -169,9 +169,8 @@ def sync(tippr_client, g_client):
         for promotion in promotions:
             pid = promotion['id']
             
-            
-            if pid =="d99a43c44eac11e1894bf23c91df40bf":
-                print "ok"    
+            if pid == "95ce0596506311e1a51afefd45a4c5ef":
+                print "ok"
                 
                  
             promotion_status = promotion['status']
