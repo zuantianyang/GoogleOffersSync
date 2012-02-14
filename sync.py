@@ -79,11 +79,14 @@ def register_promotion(conn, cursor, promotion):
         conn.commit()
 
 def register_promotion_history(conn, cursor, promotion, g_status):
+    pid = promotion['id']
     data = {
-            'promotion_id': promotion['id'],
+            'promotion_id': pid,
             'status'      : g_status,
+            'last'        : True,
             'last_update' : datetime.datetime.now()
             }
+    cursor.execute('update redemption_codes set last=false where promotion_id = %s', [pid])
     dinsert(cursor, 'promotion_status_history', data)
     conn.commit()
 
