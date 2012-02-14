@@ -49,7 +49,7 @@ def get_code_type(code, vouchers):
     for v in vouchers:
         if code in v['voucher_code']:
             return 'voucher_code'
-        elif v['redemption_code'] and code in v['redemption_code']:
+        elif v['redemption_code']:
             return 'redemption_code'
     print "Unable to find voucher code %s\n" % code['id']
         
@@ -92,19 +92,22 @@ def register_promotion_history(conn, cursor, promotion, g_status):
 
 def update_redemption_data(conn, cursor, g_client, pid):
     for status in ['CREATED', 'PURCHASED', 'REDEEMED', 'REFUND_HOLD', 'REFUNDED', 'CANCELLED']:
-        redemption_codes = g_client.GetRedemptionCodesWithStatus(pid, status)
-        size = len(redemption_codes.get('offer', {}).get('codes', []))
-                    
-        logger.debug("%s / %s / %s" % (pid, status, size))
-        data = {
-                'promotion_id': pid,
-                'size'        : size,
-                'status'      : status,
-                'last'        : True,
-                'last_update' : datetime.datetime.now()
-                }
-        cursor.execute('update redemption_codes set last=false where promotion_id = %s and status=%s', [pid, status])
-        dinsert(cursor, 'redemption_codes', data)
+        try:
+            redemption_codes = g_client.GetRedemptionCodesWithStatus(pid, status)
+            size = len(redemption_codes.get('offer', {}).get('codes', []))
+                        
+            logger.debug("%s / %s / %s" % (pid, status, size))
+            data = {
+                    'promotion_id': pid,
+                    'size'        : size,
+                    'status'      : status,
+                    'last'        : True,
+                    'last_update' : datetime.datetime.now()
+                    }
+            cursor.execute('update redemption_codes set last=false where promotion_id = %s and status=%s', [pid, status])
+            dinsert(cursor, 'redemption_codes', data)
+        except:
+            pass
     conn.commit()
 
 def process_expired_promotion(tippr_client, g_client, promotion):
@@ -112,9 +115,13 @@ def process_expired_promotion(tippr_client, g_client, promotion):
     
     #retrieve all offer's vouchers from TOM
     vouchers = tippr_client.find_vouchers(pid)
-      
-    codes = g_client.GetRedemptionCodesWithStatus(pid, 'PURCHASED')
-    purchased_codes = [c['id'] for c in codes.get('offer').get('codes', [])]
+    
+    purchased_codes = []
+    try:
+        codes = g_client.GetRedemptionCodesWithStatus(pid, 'PURCHASED')
+        purchased_codes = [c['id'] for c in codes.get('offer').get('codes', [])]
+    except:
+        pass    
 
     if purchased_codes:
         code_type = get_code_type(purchased_codes[0], vouchers)
@@ -124,10 +131,10 @@ def process_expired_promotion(tippr_client, g_client, promotion):
     for vv in vouchers:
         if vv[code_type] not in purchased_codes:
             print "returning voucher... " + str(vv['id']) + " / " + str(vv[code_type])
-            #tippr_client.return_voucher(vv['id'])
+            tippr_client.return_voucher(vv['id'])
 
     logger.info("Closing Promotion ID %s" % str(pid))
-    #response = tippr_client.close_promotion(pid)
+    response = tippr_client.close_promotion(pid)
     #logger.info("Promotion ID %s closed. Response is: %s" % (str(pid), str(response)))
     
 def process_closed_promotion(tippr_client, g_client, promotion):
@@ -158,7 +165,7 @@ def sync(tippr_client, g_client):
     
     try:
         promotions = tippr_client.find_promotions()
-
+        
         for promotion in promotions:
             pid = promotion['id']    
                             
