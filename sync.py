@@ -42,7 +42,7 @@ from commons.persistence import dinsert, register_named_entity
 
 logger = logging.getLogger('googleoffers-sync')
 today = date.today()
-yesterday = today - timedelta(days=1)
+yesterday = today - timedelta(days=4)
 
 def get_code_type(code, vouchers):
     """ Find out if this is a voucher_code or redemption_code """
@@ -51,7 +51,7 @@ def get_code_type(code, vouchers):
             return 'voucher_code'
         elif v['redemption_code']:
             return 'redemption_code'
-    print "Unable to find voucher code %s\n" % code['id']
+    logger.info("Unable to find voucher code %s\n" % code['id'])
         
 def register_promotion(conn, cursor, promotion):
     promotion_id = promotion['id']
@@ -135,28 +135,8 @@ def process_expired_promotion(tippr_client, g_client, promotion):
 
     logger.info("Closing Promotion ID %s" % str(pid))
     response = tippr_client.close_promotion(pid)
-    #iste cologger.info("Promotion ID %s closed. Response is: %s" % (str(pid), str(response)))
+    logger.info("Promotion ID %s closed. Response is: %s" % (str(pid), str(response)))
     
-def process_closed_promotion(tippr_client, g_client, promotion):
-    pid = promotion['id']
-    vouchers = tippr_client.find_vouchers(pid)
-    
-    try:
-        codes = g_client.GetRedemptionCodesWithStatus(pid, 'REFUNDED')
-        refunded = codes.get('offer', {}).get('codes')
-        # if there are refunded vouchers at google...  
-        if refunded:
-            for voucher in vouchers:
-                found = False
-                for r in refunded:
-                    if voucher['voucher_code'] == r['id'] or r['id'] == voucher['redemption_code']:
-                        logger.info("PromotionID: %s - Voucher: %s - Redemption Code: %s == %s - Returned succesfully!" % (pid, voucher, voucher['voucher_code'], r['id']))
-                        #tippr_client.return_voucher(voucher['id'])
-                        found = True
-            if not found:
-                logger.info("PromotionID: %s - Voucher: %s NOT FOUND" % (pid, voucher['voucher_id']))
-    except Exception, e:
-        logging.exception(e)
     
 
 def sync(tippr_client, g_client):
@@ -169,14 +149,10 @@ def sync(tippr_client, g_client):
         for promotion in promotions:
             pid = promotion['id']
             
-            if pid == "95ce0596506311e1a51afefd45a4c5ef":
-                print "ok"
-                
-                 
             promotion_status = promotion['status']
             end_date = datetime.datetime.strptime(promotion['end_date'], "%Y-%m-%d").date()
                     
-            logger.info('processing promotion id: %s, status is %s' % (pid, promotion_status))
+            logger.info('processing promotion id: %s, %s, status is %s, expires on %s ' % (pid, promotion['name'], promotion_status, end_date))
             register_promotion(conn, cursor, promotion)
             try:
                 if promotion_status in ['approved', 'active', 'closed']:
@@ -189,10 +165,10 @@ def sync(tippr_client, g_client):
                         if end_date < today and end_date >= yesterday:
                             process_expired_promotion(tippr_client, g_client, promotion)
                     
-            except GoogleOffersError:
-                logging.exception("Error in google offers")
+            except GoogleOffersError, e:
+                logging.exception("Error in google offers" + e)
     except Exception, e:
-        logging.exception("Error in google offers sync")
+        logging.exception("Error in google offers sync" + e)
 
     conn.commit()
     cursor.close()
@@ -204,6 +180,7 @@ def main():
     g_client = GoogleOffers('8793954', TOKEN_FILE, SECRETS_FILE)
     
     sync(tippr_client, g_client)
-
+    
+   
 if __name__ == "__main__":
     main()
