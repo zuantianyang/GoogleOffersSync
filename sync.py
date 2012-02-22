@@ -166,9 +166,9 @@ def sync(tippr_client, g_client):
                             process_expired_promotion(tippr_client, g_client, promotion)
                     
             except GoogleOffersError, e:
-                logging.exception("Error in google offers" + e)
+                logging.exception("Error in google offers" + str(e))
     except Exception, e:
-        logging.exception("Error in google offers sync" + e)
+        logging.exception("Error in google offers sync" + str(e))
 
     conn.commit()
     cursor.close()
