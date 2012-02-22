@@ -65,11 +65,16 @@ class TipprAPIClient(BaseTipprAPIClient):
         return result
 
     def close_promotion(self, pid):
-        params = dict(action='close')
-        result = self._make_api_request('post', 'promotion/%(id)s/action/' % dict(id=pid), params)
-        logger.debug('closing promotion %s: %s' % (pid, result))
-        if result['new_status'] == "close_delayed":
+        result = ''
+        try:
+            params = dict(action='close')
             result = self._make_api_request('post', 'promotion/%(id)s/action/' % dict(id=pid), params)
+            logger.debug('closing promotion %s: %s' % (pid, result))
+            if result['new_status'] == "close_delayed":
+                result = self._make_api_request('post', 'promotion/%(id)s/action/' % dict(id=pid), params)
+        except:
+            pass
+                
         return result
 
 class ResultIterator(object):
