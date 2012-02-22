@@ -1,1 +1,5 @@
+<<<<<<< HEAD
 {"_module": "oauth2client.client", "_class": "OAuth2Credentials", "access_token": "ya29.AHES6ZRHCshiWk_2gFGaA54rxRL-sRYo98zLm-vAL_TnWZUJcz3nscCp", "token_uri": "https://accounts.google.com/o/oauth2/token", "invalid": false, "client_id": "628380470687.apps.googleusercontent.com", "id_token": null, "client_secret": "pz_qpoRdEjB7u82R31FOSEQd", "token_expiry": "2012-02-18T14:38:11Z", "refresh_token": "1/Hk7iwU6nNgiTwFa-ZdfOsZIw5HbtvTqcssIYvC8bKZI", "user_agent": "offers-cmdline-sample/1.0"}
+=======
+{"_module": "oauth2client.client", "_class": "OAuth2Credentials", "access_token": "ya29.AHES6ZTO74yodk8SX7nMmAR-9V0GROZtWwQjOiuhgUUG23HOJqXOrp0", "token_uri": "https://accounts.google.com/o/oauth2/token", "invalid": false, "client_id": "628380470687.apps.googleusercontent.com", "client_secret": "pz_qpoRdEjB7u82R31FOSEQd", "token_expiry": "2012-02-14T03:54:56Z", "refresh_token": "1/Hk7iwU6nNgiTwFa-ZdfOsZIw5HbtvTqcssIYvC8bKZI", "user_agent": "offers-cmdline-sample/1.0"}
+>>>>>>> 890dc77b296f0147e0fc4c6f12bac5e4986cffc3

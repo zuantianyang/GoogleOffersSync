@@ -89,6 +89,7 @@ DROP TABLE IF EXISTS "promotion_status_history";
 CREATE TABLE "promotion_status_history" (
 	"promotion_id" varchar(100) REFERENCES promotions (id),
 	"status" varchar(100),
+	"last" boolean,
 	"last_update" timestamp(6) NULL
 )
 WITH (OIDS=FALSE);
