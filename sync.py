@@ -42,7 +42,7 @@ from commons.persistence import dinsert, register_named_entity
 
 logger = logging.getLogger('googleoffers-sync')
 today = date.today()
-yesterday = today - timedelta(days=4)
+yesterday = today - timedelta(days=1)
 
 def get_code_type(code, vouchers):
     """ Find out if this is a voucher_code or redemption_code """
@@ -165,7 +165,8 @@ def sync(tippr_client, g_client):
                     update_redemption_data(conn, cursor, g_client, pid)
                     
                     if end_date < today and end_date >= yesterday:
-                        process_expired_promotion(tippr_client, g_client, promotion)
+                        #process_expired_promotion(tippr_client, g_client, promotion)
+                        pass
                     
             except GoogleOffersError, e:
                 logging.exception("Error in google offers" + str(e))
