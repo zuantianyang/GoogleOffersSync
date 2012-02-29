@@ -79,11 +79,14 @@ def register_promotion(conn, cursor, promotion):
         conn.commit()
 
 def register_promotion_history(conn, cursor, promotion, g_status):
+    pid = promotion['id']
     data = {
-            'promotion_id': promotion['id'],
+            'promotion_id':pid,
             'status'      : g_status,
+            'last'        : True,
             'last_update' : datetime.datetime.now()
             }
+    cursor.execute('update redemption_codes set last=false where promotion_id = %s', [pid])
     dinsert(cursor, 'promotion_status_history', data)
     conn.commit()
 
@@ -148,6 +151,7 @@ def sync(tippr_client, g_client):
         
         for promotion in promotions:
             pid = promotion['id']
+                        
             
             promotion_status = promotion['status']
             end_date = datetime.datetime.strptime(promotion['end_date'], "%Y-%m-%d").date()
@@ -160,10 +164,8 @@ def sync(tippr_client, g_client):
                     register_promotion_history(conn, cursor, promotion, g_status)
                     update_redemption_data(conn, cursor, g_client, pid)
                     
-                    if promotion_status in ['approved', 'closed']:
-                        #check if we need to close the offer at TOM
-                        if end_date < today and end_date >= yesterday:
-                            process_expired_promotion(tippr_client, g_client, promotion)
+                    if end_date < today and end_date >= yesterday:
+                        process_expired_promotion(tippr_client, g_client, promotion)
                     
             except GoogleOffersError, e:
                 logging.exception("Error in google offers" + str(e))
