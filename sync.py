@@ -30,6 +30,8 @@ commons.dictconfig.dictConfig(LOGGING)
 TOKEN_FILE ='metadata/tokens.dat'
 SECRETS_FILE = 'metadata/client_secrets.json'
 
+#TOKEN_FILE ='/usr/local/GoogleOffersSync/metadata/tokens.dat'
+#SECRETS_FILE = '/usr/local/GoogleOffersSync/metadata/client_secrets.json'
 ################
 
 import datetime
@@ -42,7 +44,7 @@ from commons.persistence import dinsert, register_named_entity
 
 logger = logging.getLogger('googleoffers-sync')
 today = date.today()
-yesterday = today - timedelta(days=1)
+yesterday = today - timedelta(days=4)
 
 def get_code_type(code, vouchers):
     """ Find out if this is a voucher_code or redemption_code """
@@ -91,12 +93,16 @@ def register_promotion_history(conn, cursor, promotion, g_status):
     conn.commit()
 
 def update_redemption_data(conn, cursor, g_client, pid):
+    
+    logger.info("======================================")
+    logger.info("UPDATING REDEMPTION DATA FOR %s" % pid)
+    
     for status in ['CREATED', 'PURCHASED', 'REDEEMED', 'REFUND_HOLD', 'REFUNDED', 'CANCELLED']:
         try:
-            redemption_codes = g_client.GetRedemptionCodesWithStatus(pid, status)
+            redemption_codes = g_client.GetRedemptionCodesWithStatus(pid, status)                        
             size = len(redemption_codes.get('offer', {}).get('codes', []))
-                        
-            logger.debug("%s / %s / %s" % (pid, status, size))
+                    
+            logger.info("GetRedemptionCodesWithStatus found -> %s / %s / %s" % (pid, status, size))
             data = {
                     'promotion_id': pid,
                     'size'        : size,
@@ -106,9 +112,14 @@ def update_redemption_data(conn, cursor, g_client, pid):
                     }
             cursor.execute('update redemption_codes set last=false where promotion_id = %s and status=%s', [pid, status])
             dinsert(cursor, 'redemption_codes', data)
-        except:
+                
+        except Exception, e:
+            logging.exception("UpdatingRedemptionData Exception -> %s " % str(e))
             continue
+    
     conn.commit()
+        
+    
 
 def process_expired_promotion(tippr_client, g_client, promotion):
     pid = promotion['id']
@@ -118,7 +129,9 @@ def process_expired_promotion(tippr_client, g_client, promotion):
     v = []
     for i, voucher in enumerate(vouchers):
         v.append(voucher)
-    
+ 
+    #v = vouchers['vouchers']
+       
     purchased_codes = []
     try:
         codes = g_client.GetRedemptionCodesWithStatus(pid, 'PURCHASED')
@@ -133,8 +146,9 @@ def process_expired_promotion(tippr_client, g_client, promotion):
     
     for vv in v:
         if vv[code_type] not in purchased_codes:
-            print "returning voucher... " + str(vv['id']) + " / " + str(vv[code_type])
-            tippr_client.return_voucher(vv['id'])
+            response = tippr_client.return_voucher(vv['id']) 
+            print "returning voucher... " + str(vv['id']) + " / " + str(vv[code_type]) + " / Result = " + str(response)
+            
 
     logger.info("Closing Promotion ID %s" % str(pid))
     response = tippr_client.close_promotion(pid)
@@ -148,28 +162,37 @@ def sync(tippr_client, g_client):
     
     try:
         promotions = tippr_client.find_promotions()
+        logger.info("Total Promotions: %s" % len(promotions))
         
         for promotion in promotions:
             pid = promotion['id']
-                        
+            g_status = None    
             
             promotion_status = promotion['status']
             end_date = datetime.datetime.strptime(promotion['end_date'], "%Y-%m-%d").date()
                     
-            logger.info('processing promotion id: %s, %s, status is %s, expires on %s ' % (pid, promotion['name'], promotion_status, end_date))
+            logger.info('Processing promotion id: %s, %s, status is %s, expires on %s ' % (pid, promotion['name'], promotion_status, end_date))
+            
             register_promotion(conn, cursor, promotion)
+            
             try:
-                if promotion_status in ['approved', 'active', 'closed']:
-                    g_status = g_client.GetOfferStatus(pid)
-                    register_promotion_history(conn, cursor, promotion, g_status)
-                    update_redemption_data(conn, cursor, g_client, pid)
                     
-                    if end_date < today and end_date >= yesterday:
-                        #process_expired_promotion(tippr_client, g_client, promotion)
-                        pass
+                if end_date < today and end_date >= yesterday:
+                    process_expired_promotion(tippr_client, g_client, promotion)
                     
-            except GoogleOffersError, e:
+                           
+                g_status = g_client.GetOfferStatus(pid)
+                if g_status == "-1":
+                    g_status = "NOT_EXISTS" 
+                
+                register_promotion_history(conn, cursor, promotion, g_status)
+                update_redemption_data(conn, cursor, g_client, pid)
+                                       
+            except Exception, e:
                 logging.exception("Error in google offers" + str(e))
+                
+
+                
     except Exception, e:
         logging.exception("Error in google offers sync" + str(e))
 

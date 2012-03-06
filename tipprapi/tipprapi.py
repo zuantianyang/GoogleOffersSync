@@ -2,6 +2,7 @@ import urllib
 import simplejson 
 
 import logging
+from retry import retry
 
 SETTINGS = {
         'api_url': 'https://marketplace.poweredbytippr.com/api/v0/',
@@ -51,19 +52,34 @@ class TipprAPIClient(BaseTipprAPIClient):
     def __init__(self):
         super(TipprAPIClient, self).__init__(SETTINGS['api_url'], SETTINGS['api_key'])
 
+    @retry(Exception, tries=4)
+    def find_promotion(self, pid):
+        params = {}
+        result = self._make_api_request('get', 'promotion/%(id)s/' % dict(id=pid), params)
+        return result
+    
+    @retry(Exception, tries=4)
     def find_promotions(self, query={}):
-        return ResultIterator('promotions', lambda params: self._make_api_request('get', 'promotion/', params), query)
+        #return ResultIterator('promotions', lambda params: self._make_api_request('get', 'promotion/', params), query)
+        params = dict(page_size = PAGE_SIZE)
+        params.update(params)        
+        result = self._make_api_request('get', 'promotion/', params)
+        return result['promotions']
 
+    @retry(Exception, tries=4)
     def find_vouchers(self, pid, query={}, **kwargs):
         query = dict(promotion_id=pid)
         return ResultIterator('vouchers', lambda params: self._make_api_request('get', 'voucher/', params), query)
-
+        
+        
+    @retry(Exception, tries=4)
     def return_voucher(self, voucher_id):
         params = dict(action='return')
         result = self._make_api_request('post', 'voucher/%(id)s/action/' % dict(id=voucher_id), params)
         logger.debug('returning voucher %s: %s' % (voucher_id, result))
         return result
 
+    @retry(Exception, tries=4)
     def close_promotion(self, pid):
         result = ''
         try:
