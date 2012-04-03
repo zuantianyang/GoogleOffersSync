@@ -5,17 +5,23 @@ import commons.dictconfig
 #Configuration:
 import logging.config
 
+
 LOGGING = {
         'version': 1.0,
         'handlers': {
             'console': {
                 'level': 'DEBUG',
                 'class': 'logging.StreamHandler'
+            },
+            'file': {
+               'level': 'DEBUG',      
+               'class' : 'logging.handlers.RotatingFileHandler',
+               'filename': 'gofferssync_log.log'
             }
         },                                                                                                                     
         'loggers': {
             'googleoffers-sync': {
-                'handlers': ['console'],
+                'handlers': ['console', 'file'],
                 'level'   : 'INFO'
                 },
             'tippr-api': {
@@ -44,7 +50,7 @@ from commons.persistence import dinsert, register_named_entity
 
 logger = logging.getLogger('googleoffers-sync')
 today = date.today()
-yesterday = today - timedelta(days=4)
+yesterday = today - timedelta(days=1)
 
 def get_code_type(code, vouchers):
     """ Find out if this is a voucher_code or redemption_code """
@@ -176,6 +182,9 @@ def sync(tippr_client, g_client):
             register_promotion(conn, cursor, promotion)
             
             try:
+                
+                if pid == '0a188a82689411e1b1e8f23c91df40bf':
+                    pass   
                     
                 if end_date < today and end_date >= yesterday:
                     process_expired_promotion(tippr_client, g_client, promotion)
