@@ -182,10 +182,7 @@ def sync(tippr_client, g_client):
             register_promotion(conn, cursor, promotion)
             
             try:
-                
-                if pid == '0a188a82689411e1b1e8f23c91df40bf':
-                    pass   
-                    
+                                    
                 if end_date < today and end_date >= yesterday:
                     process_expired_promotion(tippr_client, g_client, promotion)
                     
