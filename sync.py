@@ -174,6 +174,7 @@ def sync(tippr_client, g_client):
             pid = promotion['id']
             g_status = None    
             
+            
             promotion_status = promotion['status']
             end_date = datetime.datetime.strptime(promotion['end_date'], "%Y-%m-%d").date()
                     
