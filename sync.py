@@ -41,10 +41,9 @@ SECRETS_FILE = 'metadata/client_secrets.json'
 ################
 
 import datetime
-from datetime import date
-from datetime import timedelta
+from datetime import date, timedelta
 from tipprapi.tipprapi import TipprAPIClient
-from googleoffers.client import GoogleOffers, GoogleOffersError
+from googleoffers.client import GoogleOffers
 from commons.configuration import open_connection
 from commons.persistence import dinsert, register_named_entity
 
@@ -125,19 +124,28 @@ def update_redemption_data(conn, cursor, g_client, pid):
     
     conn.commit()
         
-    
-
+def get_vouchers_from_tom(tippr_client, pid, status=None):    
+    vouchers = tippr_client.find_vouchers(pid)
+    v = []
+    if status is None:
+        for i, voucher in enumerate(vouchers):
+            v.append(voucher)                
+    else:
+        for i, voucher in enumerate(vouchers):
+            if voucher['status'] == status:
+                v.append(voucher)
+    return v
+        
+        
+        
+        
 def process_expired_promotion(tippr_client, g_client, promotion):
     pid = promotion['id']
     
     #retrieve all offer's vouchers from TOM
-    vouchers = tippr_client.find_vouchers(pid)
-    v = []
-    for i, voucher in enumerate(vouchers):
-        v.append(voucher)
- 
-    #v = vouchers['vouchers']
-       
+    v = get_vouchers_from_tom(tippr_client, pid)
+    
+        
     purchased_codes = []
     try:
         codes = g_client.GetRedemptionCodesWithStatus(pid, 'PURCHASED')
@@ -150,15 +158,30 @@ def process_expired_promotion(tippr_client, g_client, promotion):
     else:
         code_type = 'voucher_code'
     
+    returned_count = 0
     for vv in v:
         if vv[code_type] not in purchased_codes:
-            response = tippr_client.return_voucher(vv['id']) 
-            print "returning voucher... " + str(vv['id']) + " / " + str(vv[code_type]) + " / Result = " + str(response)
-            
-
-    logger.info("Closing Promotion ID %s" % str(pid))
-    response = tippr_client.close_promotion(pid)
-    logger.info("Promotion ID %s closed. Response is: %s" % (str(pid), str(response)))
+            response = tippr_client.return_voucher(vv['id'])
+                        
+            if 'errors' in response:
+                logger.critical("Error returning voucher: Promotion ID %s, voucher %s could no be returned. (status is %s)" % (pid, str(vv['id']), vv['status'])) 
+            else:
+                logger.info("Voucher %s (status: %s) returned... Response is %s" % (str(vv['id']), vv['status'], str(response)))
+                returned_count +=1
+        else:
+            logger.info("Voucher %s is assigned" % str(vv['id']))   
+     
+     
+    #check if everything is OK (purchased at TOM == purchased at Google) 
+    purchased_at_tom = get_vouchers_from_tom(tippr_client, pid, "assigned")
+    
+    if len(purchased_at_tom) == len(purchased_codes):
+        logger.info("%s Vouchers were successfully returned" % str(returned_count))
+        logger.info("Closing Promotion ID %s" % str(pid))
+        response = tippr_client.close_promotion(pid)
+        logger.info("Promotion ID %s closed. Response is: %s" % (str(pid), str(response)))
+    else:    
+        logger.critical("Error! Promotion ID %s. Total Purchased at TOM %s. Total Purchased at Google %s. The promotion was NOT closed." % (pid, str(len(purchased_at_tom)), str(len(purchased_codes))))
     
     
 
@@ -168,7 +191,7 @@ def sync(tippr_client, g_client):
     
     try:
         promotions = tippr_client.find_promotions()
-        logger.info("Total Promotions: %s" % len(promotions))
+        logger.info("Total Promotions: %s. Run time: %s" % (len(promotions), str(datetime.datetime.now())))
         
         for promotion in promotions:
             pid = promotion['id']
@@ -177,7 +200,7 @@ def sync(tippr_client, g_client):
             
             promotion_status = promotion['status']
             end_date = datetime.datetime.strptime(promotion['end_date'], "%Y-%m-%d").date()
-                    
+            
             logger.info('Processing promotion id: %s, %s, status is %s, expires on %s ' % (pid, promotion['name'], promotion_status, end_date))
             
             register_promotion(conn, cursor, promotion)
@@ -186,8 +209,7 @@ def sync(tippr_client, g_client):
                                     
                 if end_date < today and end_date >= yesterday:
                     process_expired_promotion(tippr_client, g_client, promotion)
-                    
-                           
+                                           
                 g_status = g_client.GetOfferStatus(pid)
                 if g_status == "-1":
                     g_status = "NOT_EXISTS" 

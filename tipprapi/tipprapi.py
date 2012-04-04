@@ -26,6 +26,7 @@ class BaseTipprAPIClient(object):
         self.url = url
         self.apikey = apikey
 
+    @retry(Exception, tries=4)
     def _make_api_request(self, type, resource, params):
         if type == 'get':
             data = self._make_get_request(resource, params)
@@ -52,13 +53,13 @@ class TipprAPIClient(BaseTipprAPIClient):
     def __init__(self):
         super(TipprAPIClient, self).__init__(SETTINGS['api_url'], SETTINGS['api_key'])
 
-    @retry(Exception, tries=4)
+    
     def find_promotion(self, pid):
         params = {}
         result = self._make_api_request('get', 'promotion/%(id)s/' % dict(id=pid), params)
         return result
     
-    @retry(Exception, tries=4)
+    
     def find_promotions(self, query={}):
         #return ResultIterator('promotions', lambda params: self._make_api_request('get', 'promotion/', params), query)
         params = dict(page_size = PAGE_SIZE)
@@ -66,20 +67,26 @@ class TipprAPIClient(BaseTipprAPIClient):
         result = self._make_api_request('get', 'promotion/', params)
         return result['promotions']
 
-    @retry(Exception, tries=4)
+    
     def find_vouchers(self, pid, query={}, **kwargs):
         query = dict(promotion_id=pid)
         return ResultIterator('vouchers', lambda params: self._make_api_request('get', 'voucher/', params), query)
         
         
-    @retry(Exception, tries=4)
+    def find_vouchers2(self, pid, query={}, **kwargs):
+        params = dict(promotion_id=pid, page_size = PAGE_SIZE )
+        params.update(params)        
+        result = self._make_api_request('get', 'voucher/', params)
+        return result['vouchers']
+
+    
     def return_voucher(self, voucher_id):
         params = dict(action='return')
         result = self._make_api_request('post', 'voucher/%(id)s/action/' % dict(id=voucher_id), params)
         logger.debug('returning voucher %s: %s' % (voucher_id, result))
         return result
 
-    @retry(Exception, tries=4)
+    
     def close_promotion(self, pid):
         result = ''
         try:
