@@ -17,7 +17,7 @@ LOGGING = {
                'level': 'DEBUG',      
                'class' : 'logging.handlers.RotatingFileHandler',
                'filename': 'gofferssync_log.log'
-            }
+            }         
         },                                                                                                                     
         'loggers': {
             'googleoffers-sync': {
@@ -41,15 +41,31 @@ SECRETS_FILE = 'metadata/client_secrets.json'
 ################
 
 import datetime
-from datetime import date, timedelta
+import calendar
+from datetime import date, time, timedelta
 from tipprapi.tipprapi import TipprAPIClient
 from googleoffers.client import GoogleOffers
 from commons.configuration import open_connection
 from commons.persistence import dinsert, register_named_entity
+import pytz
+
 
 logger = logging.getLogger('googleoffers-sync')
-today = date.today()
+
+
+class EST(datetime.tzinfo):
+    def utcoffset(self, dt):
+        return datetime.timedelta(hours=-5)
+
+    def dst(self, dt):
+        return datetime.timedelta(0)
+
+#today = date.today()
+today = datetime.datetime.now(EST())
 yesterday = today - timedelta(days=1)
+
+
+
 
 def get_code_type(code, vouchers):
     """ Find out if this is a voucher_code or redemption_code """
@@ -125,16 +141,16 @@ def update_redemption_data(conn, cursor, g_client, pid):
     conn.commit()
         
 def get_vouchers_from_tom(tippr_client, pid, status=None):    
-    vouchers = tippr_client.find_vouchers(pid)
-    v = []
+    vouchers = tippr_client.find_vouchers2(pid)
+
     if status is None:
-        for i, voucher in enumerate(vouchers):
-            v.append(voucher)                
+        return vouchers
     else:
-        for i, voucher in enumerate(vouchers):
+        v = []
+        for voucher in vouchers:
             if voucher['status'] == status:
                 v.append(voucher)
-    return v
+        return v
         
         
         
@@ -143,7 +159,7 @@ def process_expired_promotion(tippr_client, g_client, promotion):
     pid = promotion['id']
     
     #retrieve all offer's vouchers from TOM
-    v = get_vouchers_from_tom(tippr_client, pid)
+    vouchers_at_tom = get_vouchers_from_tom(tippr_client, pid)
     
         
     purchased_codes = []
@@ -153,23 +169,30 @@ def process_expired_promotion(tippr_client, g_client, promotion):
     except:
         pass    
 
-    if purchased_codes:
-        code_type = get_code_type(purchased_codes[0], v)
-    else:
-        code_type = 'voucher_code'
+       
+    logger.info("*** CLOSING PROMOTION (START) ***")
+    logger.info("---------------------------------")
+    
     
     returned_count = 0
-    for vv in v:
-        if vv[code_type] not in purchased_codes:
-            response = tippr_client.return_voucher(vv['id'])
+    purchased_count = 0
+        
+    for v in vouchers_at_tom:
+        if v['voucher_code'] not in purchased_codes:   
+            if v['redemption_code'] not in purchased_codes:
+                response = tippr_client.return_voucher(v['id'])
                         
-            if 'errors' in response:
-                logger.critical("Error returning voucher: Promotion ID %s, voucher %s could no be returned. (status is %s)" % (pid, str(vv['id']), vv['status'])) 
+                if 'errors' in response:
+                    logger.critical("Error returning voucher: Promotion ID %s, voucher %s could no be returned. (status is %s)" % (pid, str(v['id']), v['status'])) 
+                else:
+                    logger.info("Voucher %s (status: %s) returned to TOM... Response is %s" % (str(v['id']), v['status'], str(response)))
+                    returned_count +=1
             else:
-                logger.info("Voucher %s (status: %s) returned... Response is %s" % (str(vv['id']), vv['status'], str(response)))
-                returned_count +=1
+                logger.info("Voucher %s / %s has been purchased at Google. Leaving its status as assigned" % (str(v['id']), v['redemption_code']))
+                purchased_count += 1
         else:
-            logger.info("Voucher %s is assigned" % str(vv['id']))   
+            logger.info("Voucher %s / %s has been purchased at Google. Leaving its status as assigned" % (str(v['id']), v['voucher_code']))
+            purchased_count += 1   
      
      
     #check if everything is OK (purchased at TOM == purchased at Google) 
@@ -182,7 +205,9 @@ def process_expired_promotion(tippr_client, g_client, promotion):
         logger.info("Promotion ID %s closed. Response is: %s" % (str(pid), str(response)))
     else:    
         logger.critical("Error! Promotion ID %s. Total Purchased at TOM %s. Total Purchased at Google %s. The promotion was NOT closed." % (pid, str(len(purchased_at_tom)), str(len(purchased_codes))))
-    
+
+    logger.info("*** CLOSING PROMOTION (END) ***")
+    logger.info("-------------------------------")    
     
 
 def sync(tippr_client, g_client):
@@ -197,15 +222,28 @@ def sync(tippr_client, g_client):
             pid = promotion['id']
             g_status = None    
             
-            
             promotion_status = promotion['status']
-            end_date = datetime.datetime.strptime(promotion['end_date'], "%Y-%m-%d").date()
+            publisher = promotion['publisher']['name']
+            #ignore already closed promotions
+            if promotion_status == 'closed':
+                continue
             
+            if publisher != 'Google':
+                continue
+                      
+            EST_tz = pytz.timezone('US/Eastern')
+            
+            end_offer_date = datetime.datetime.strptime(promotion['end_date'], "%Y-%m-%d").date()
+            end_date = datetime.datetime(end_offer_date.year, end_offer_date.month, end_offer_date.day, 23, 59, 59)
+            end_date = EST_tz.localize(end_date)
+                      
             logger.info('Processing promotion id: %s, %s, status is %s, expires on %s ' % (pid, promotion['name'], promotion_status, end_date))
-            
+         
+
             register_promotion(conn, cursor, promotion)
             
             try:
+                         
                                     
                 if end_date < today and end_date >= yesterday:
                     process_expired_promotion(tippr_client, g_client, promotion)
