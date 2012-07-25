@@ -1,5 +1,7 @@
 import logging
+import sys
 import commons.dictconfig
+import ConfigParser
 
 ################
 #Configuration:
@@ -45,10 +47,9 @@ import calendar
 from datetime import date, time, timedelta
 from tipprapi.tipprapi import TipprAPIClient
 from googleoffers.client import GoogleOffers
-from commons.configuration import open_connection
+from commons import configuration
 from commons.persistence import dinsert, register_named_entity
 import pytz
-
 
 logger = logging.getLogger('googleoffers-sync')
 
@@ -211,7 +212,7 @@ def process_expired_promotion(tippr_client, g_client, promotion):
     
 
 def sync(tippr_client, g_client):
-    conn = open_connection()
+    conn = configuration.open_connection()
     cursor = conn.cursor()
     
     try:
@@ -269,11 +270,13 @@ def sync(tippr_client, g_client):
     logger.info("*** END ***")
 
 def main():
-    tippr_client = TipprAPIClient()
-    g_client = GoogleOffers('8793954', TOKEN_FILE, SECRETS_FILE)
-    
+    cfg = ConfigParser.ConfigParser()
+    cfg.readfp(open(configuration.CONFIG_FILE))
+    tippr_client = TipprAPIClient(cfg.get('Marketplace','url'),cfg.get('Marketplace','apikey'))
+    g_client = GoogleOffers(cfg.get('Google','partner_id'), cfg.get('Google','token_file'), cfg.get('Google', 'secrets_file'))
     sync(tippr_client, g_client)
     
    
 if __name__ == "__main__":
+    configuration.CONFIG_FILE = sys.argv[1]
     main()

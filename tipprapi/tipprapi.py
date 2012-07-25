@@ -4,11 +4,6 @@ import simplejson
 import logging
 from retry import retry
 
-SETTINGS = {
-        'api_url': 'https://marketplace.poweredbytippr.com/api/v0/',
-        'api_key': '678563f4bece11e094f4fefd45a4c5ef'
-        }
-
 PAGE_SIZE = 5000
 
 logger = logging.getLogger('tippr-api')
@@ -50,8 +45,8 @@ class BaseTipprAPIClient(object):
         return self.url + resource + '?' + urllib.urlencode(dict(apikey=self.apikey))
 
 class TipprAPIClient(BaseTipprAPIClient):
-    def __init__(self):
-        super(TipprAPIClient, self).__init__(SETTINGS['api_url'], SETTINGS['api_key'])
+    def __init__(self, apikey, url):
+        super(TipprAPIClient, self).__init__(url, apikey)
 
     
     def find_promotion(self, pid):
